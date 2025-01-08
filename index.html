@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Compound Interest Calculator</title>
+      <style>
+        body {
+          font-family: Arial, sans-serif;
+          max-width: 800px;
+          margin: 20px auto;
+          padding: 20px;
+          border: 1px solid #ccc;
+          border-radius: 5px;
+          position: relative;
+        }
+        .input-group {
+          margin-bottom: 15px;
+        }
+        label {
+          display: block;
+          margin-bottom: 5px;
+        }
+        input[type="number"], input[type="date"] {
+          width: 100%;
+          padding: 8px;
+          box-sizing: border-box;
+        }
+        .switch {
+          position: relative;
+          display: inline-block;
+          width: 60px;
+          height: 34px;
+        }
+        .switch input { 
+          opacity: 0;
+          width: 0;
+          height: 0;
+        }
+        .slider {
+          position: absolute;
+          cursor: pointer;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: #ccc;
+          transition: .4s;
+          border-radius: 34px;
+        }
+        .slider:before {
+          position: absolute;
+          content: "";
+          height: 26px;
+          width: 26px;
+          left: 4px;
+          bottom: 4px;
+          background-color: white;
+          transition: .4s;
+          border-radius: 50%;
+        }
+        input:checked + .slider {
+          background-color: #2196F3;
+        }
+        input:checked + .slider:before {
+          transform: translateX(26px);
+        }
+        button {
+          width: 100%;
+          padding: 10px;
+          background-color: #2196F3;
+          color: white;
+          border: none;
+          border-radius: 5px;
+          cursor: pointer;
+        }
+        .result {
+          margin-top: 20px;
+          padding: 15px;
+          background-color: #f5f5f5;
+          border-radius: 5px;
+        }
+        .footer {
+          margin-top: 20px;
+          text-align: center;
+          font-size: 0.9em;
+          color: #666;
+        }
+        .day-results {
+          margin-top: 20px;
+          max-height: 400px;
+          overflow-y: auto;
+          border: 1px solid #ddd;
+          padding: 10px;
+          border-radius: 5px;
+        }
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          margin-top: 10px;
+        }
+        th, td {
+          padding: 8px;
+          text-align: left;
+          border-bottom: 1px solid #ddd;
+        }
+        th {
+          background-color: #f5f5f5;
+          position: sticky;
+          top: 0;
+        }
+        tr:hover {
+          background-color: #f9f9f9;
+        }
+        .rate-input, .withdraw-input {
+          width: 80px;
+          padding: 4px;
+        }
+        .credit {
+          margin-top: 10px;
+          font-weight: bold;
+          color: #2196F3;
+        }
+      </style>
+    </head>
+    <body>
+      <h1>Compound Interest Calculator</h1>
+      
+      <div class="input-group">
+        <label for="initialAmount">Initial Amount ($):</label>
+        <input type="number" id="initialAmount" min="0" step="0.01" required>
+      </div>
+
+      <div class="input-group">
+        <label for="dailyRate">Daily Interest Rate (%):</label>
+        <input type="number" id="dailyRate" min="0" step="0.01" required>
+      </div>
+
+      <div class="input-group">
+        <label for="days">Number of Days:</label>
+        <input type="number" id="days" min="1" required>
+      </div>
+
+      <div class="input-group">
+        <label for="startDate">Start Date (optional):</label>
+        <input type="date" id="startDate">
+      </div>
+
+      <div class="input-group">
+        <label>Include Weekends:</label>
+        <label class="switch">
+          <input type="checkbox" id="includeWeekends" checked>
+          <span class="slider"></span>
+        </label>
+      </div>
+
+      <button onclick="calculate()">Calculate</button>
+
+      <div class="credit">Calculator coded by Nams || Nonty</div>
+
+      <div class="result" id="result"></div>
+
+      <div class="day-results">
+        <table id="dayResultsTable">
+          <thead>
+            <tr>
+              <th>Day</th>
+              <th>Date</th>
+              <th>Rate (%)</th>
+              <th>Withdraw ($)</th>
+              <th>Starting Balance</th>
+              <th>Interest Added</th>
+              <th>New Balance</th>
+            </tr>
+          </thead>
+          <tbody>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="footer">
+        &copy; 2023 Coded by @NamsPestador | Nonty
+      </div>
+
+      <script>
+        let rateChanges = {};
+        let withdrawals = {};
+
+        function calculate() {
+          const initialAmount = parseFloat(document.getElementById('initialAmount').value);
+          const baseDailyRate = parseFloat(document.getElementById('dailyRate').value) / 100;
+          const days = parseInt(document.getElementById('days').value);
+          const startDateInput = document.getElementById('startDate').value;
+          const includeWeekends = document.getElementById('includeWeekends').checked;
+
+          if (isNaN(initialAmount) || isNaN(baseDailyRate) || isNaN(days)) {
+            alert('Please fill in all required fields correctly');
+            return;
+          }
+
+          let startDate = startDateInput ? new Date(startDateInput) : new Date();
+          let endDate = new Date(startDate);
+          endDate.setDate(startDate.getDate() + days - 1);
+
+          let currentDate = new Date(startDate);
+          let amount = initialAmount;
+          let daysCount = 0;
+          let totalInterest = 0;
+          const tableBody = document.querySelector('#dayResultsTable tbody');
+          tableBody.innerHTML = '';
+
+          while (daysCount < days) {
+            const dayOfWeek = currentDate.getDay();
+            if (includeWeekends || (dayOfWeek !== 0 && dayOfWeek !== 6)) {
+              const dateKey = currentDate.toISOString().split('T')[0];
+              const currentRate = rateChanges[dateKey] || baseDailyRate;
+              const withdrawAmount = withdrawals[dateKey] || 0;
+              
+              amount = Math.max(0, amount - withdrawAmount);
+              const interest = amount * currentRate;
+              const newBalance = amount + interest;
+              
+              const row = document.createElement('tr');
+              row.innerHTML = `
+                <td>${daysCount + 1}</td>
+                <td>${currentDate.toDateString()}</td>
+                <td><input type="number" class="rate-input" value="${(currentRate * 100).toFixed(2)}" onchange="updateRate('${dateKey}', this.value)"></td>
+                <td><input type="number" class="withdraw-input" value="${withdrawAmount.toFixed(2)}" onchange="updateWithdrawal('${dateKey}', this.value)"></td>
+                <td>$${amount.toFixed(2)}</td>
+                <td>$${interest.toFixed(2)}</td>
+                <td>$${newBalance.toFixed(2)}</td>
+              `;
+              tableBody.appendChild(row);
+
+              amount = newBalance;
+              totalInterest += interest;
+              daysCount++;
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+          }
+
+          const resultElement = document.getElementById('result');
+          resultElement.innerHTML = `
+            <strong>Final Amount:</strong> $${amount.toFixed(2)}<br>
+            <strong>Total Days:</strong> ${daysCount}<br>
+            <strong>Total Interest:</strong> $${totalInterest.toFixed(2)}<br>
+            <strong>Start Date:</strong> ${startDate.toDateString()}<br>
+            <strong>End Date:</strong> ${endDate.toDateString()}
+          `;
+        }
+
+        function updateRate(date, value) {
+          rateChanges[date] = parseFloat(value) / 100;
+          calculate();
+        }
+
+        function updateWithdrawal(date, value) {
+          withdrawals[date] = parseFloat(value);
+          calculate();
+        }
+
+        document.getElementById('startDate').value = new Date().toISOString().split('T')[0];
+      </script>
+    </body>
+    </html>
